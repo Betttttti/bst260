@@ -1,0 +1,64 @@
+---
+title: "BST 260 Problem set 2: Basics and polynomials"
+author: "Betty Hou"
+format: pdf
+editor: visual
+---
+
+## Exercise 1
+
+```{r}
+all.equal(c(1,2,3), seq(1,3,1))
+```
+
+The result is \`TRUE\` because \`c(1,2,3)\` and \`seq(1,3,1)\` both produce the same vector \`(1, 2, 3)\`.
+
+## Exercise 2
+
+```{r}
+length(seq(1, 100, .5))
+```
+
+The vector has length 199.
+
+## Exercise 3
+
+R performs the comparison element-wise. Since only 5 and 6 are greater than 4, the result is FALSE FALSE TRUE TRUE. The result is a logical vector.
+
+# Anscombe plots
+
+## Exercise 4
+
+```{r}
+par(mfrow=c(2,2), mar=c(4,2,1,1))
+with(anscombe, plot(x1,y1,xlim=c(4,20), ylim=c(3,13)))
+with(anscombe, plot(x2,y2,xlim=c(4,20), ylim=c(3,13)))
+with(anscombe, plot(x3,y3,xlim=c(4,20), ylim=c(3,13)))
+with(anscombe, plot(x4,y4,xlim=c(4,20), ylim=c(3,13)))
+```
+
+## Exercise 5
+
+The xlim and ylim settings specify the ranges shown on the x-axis and y-axis. Here, xlim=c(4,20) sets the x-axis from 4 to 20, and ylim=c(3,13) sets the y-axis from 3 to 13. Using the same limits for all four plots makes them easier to compare visually.
+
+## Exercise 6
+## A polynomial function to model the Anscombe x2:y2 data
+
+```{r}
+q1 = function(x) -7 + 2.78*x -.127*x*x
+par(mfrow=c(1,1))
+with(anscombe, plot(x2,y2))
+
+newx = seq(4,14,.1)
+lines(newx, q1(newx))
+
+q2 = function(x) -6 + 2.78*x - .127*x*x
+lines(newx, q2(newx), col = "red")
+```
+
+The function q1(x) = -7 + 2.78x - 0.127x² has approximately the correct quadratic shape for the x2:y2 data, but its predicted y-values are about one unit too small. The defect is therefore in the constant term, which controls the vertical position of the parabola. I repaired it by increasing the constant term from -7 to -6, giving q2(x) = -6 + 2.78x - 0.127x². This shifts the entire curve upward by one unit without changing its shape.
+
+
+
+
+
