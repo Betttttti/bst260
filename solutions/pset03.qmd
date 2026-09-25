@@ -1,0 +1,315 @@
+---
+title: "BST 260 Problem set 3: Logic, reading, guns and geography"
+author: "Betty Hou"
+format: typst
+editor: visual
+---
+
+## Exercise 1
+
+```{r}
+C <- TRUE    # The coupon is valid
+P <- FALSE   # The price is reduced
+S <- FALSE   # Shipping is free
+
+# Formalization: C -> (P OR S)
+statement1 <- !C | (P | S)
+statement1
+```
+The statement is FALSE when the coupon is valid, the price is not reduced, and shipping is not free.
+
+## Exercise 2
+
+```{r}
+S <- FALSE   # It is sunny
+W <- FALSE   # It is warm
+C <- FALSE   # The picnic is cancelled
+
+# Formalization: (NOT S AND NOT W) -> C
+statement2 <- !(!S & !W) | C
+statement2
+```
+The statement is FALSE when it is not sunny, it is not warm, and the picnic is not cancelled.
+
+## Exercise 3
+
+```{r}
+E <- TRUE    # You may enter the contest
+M <- FALSE   # You are a member
+F <- FALSE   # You have paid the fee
+
+# Formalization: E <-> (M OR F)
+statement3 <- (E & (M | F)) | (!E & !(M | F))
+statement3
+```
+
+Given that you enter the contest and the statement is FALSE, you are not a member and have not paid the fee.
+
+## Exercise 4
+
+```{r}
+library(dslabs)
+head(murders)
+dim(murders)
+
+```
+
+The murders dataset contains firearm murder data from 2010, rather than data on all types of homicide. Therefore, it cannot be used to represent the overall homicide rate. Additionally, the data are from only one year and cannot describe current homicide rates or trends.
+
+## Exercise 5
+
+```{r}
+cdcmurd <- read.csv("https://tinyurl.com/cdcmurder")
+dim(cdcmurd)
+nrow(cdcmurd)
+ncol(cdcmurd)
+head(cdcmurd)
+```
+
+The age-adjusted homicide rate accounts for differences in age distribution between populations. It makes sense because states have different age distributions, and homicide mortality rates can vary across age groups. Age adjustment allows a more meaningful comparison of homicide mortality rates across states and years. The number of rows is 612.
+
+## Exercise 6
+
+```{r}
+table(table(head(cdcmurd$Location,120)))
+table(table(head(cdcmurd$Location,153)))
+head(table(cdcmurd$Location))
+```
+The inner table() counts how many times each location appears in the selected observations. The outer table() counts how many locations appear exactly 1 time, 2 times, 3 times, etc. Comparing the first 120 and 153 observations helps us understand how the dataset is organized and how many observations are recorded for each location. The double table() construction is useful because it summarizes the frequency distribution of locations without printing the entire location frequency table.
+
+## Exercise 7
+
+```{r}
+apply(cdcmurd,2,function(x) any(is.na(x)))
+```
+
+apply() applies a function to each column of cdcmurd. The argument 2 indicates that the function is applied column by column. is.na(x) checks whether each element in a column is missing (NA). any(is.na(x)) returns TRUE if at least one element in that column is missing, and FALSE otherwise. Therefore, the command identifies which columns in the dataset contain at least one missing value.
+
+## Exercise 8
+
+```{r}
+cdcmurd[which(is.na(cdcmurd$Death.Rate)),] |> nrow()
+```
+The command counts the number of rows in the cdcmurd dataset where Death.Rate is missing (NA). The is.na() function identifies missing values, which() returns their row indices, and nrow() counts the rows that satisfy this condition.
+
+## Exercise 9
+
+```{r}
+library(dplyr)
+cdcmurd |> filter(is.na(Death.Rate)) |> count()
+```
+
+Both commands count the number of observations with missing values in the Death.Rate column. Exercise 8 uses base R functions to filter the data and count the rows, while Exercise 9 uses dplyr functions to perform the same operation. The two commands should return the same numerical result, but Exercise 9 returns a data frame containing the count.
+
+```{r}
+cdcmurd |> filter(is.na(Death.Rate)) |> 
+    group_by(Location) |> summarise(mn=mean(Deaths))
+median(cdcmurd$Deaths)
+```
+
+My conjecture is that death rates are missing when the number of homicide deaths is too small to produce a reliable estimate.
+
+The CDC explains that mortality rates based on small numbers of deaths can be statistically unstable. Some rates are therefore not reported when they fail to meet data-reliability standards. 
+CDC
++1
+
+Comparing the average number of deaths in locations with missing death rates against the overall median number of deaths can help investigate this explanation.
+
+If the locations with missing death rates have relatively low death counts, this would support the hypothesis that the missing values are related to small numbers of deaths.
+
+The missing death rates may therefore reflect statistical reliability or data-suppression rules rather than accidental data-entry errors. The precise reason for each missing value would require the documentation for this particular dataset.
+
+## Exercise 10
+
+```{r}
+library(ggplot2)
+library(ggbeeswarm)
+library(plotly)
+
+# Original visualization
+myp <- cdcmurd |>
+  filter(YEAR %in% c(2019, 2020, 2021, 2022)) |>
+  ggplot(aes(factor(YEAR), Death.Rate, text = Location)) +
+  geom_beeswarm() +
+  geom_boxplot()
+
+ggplotly(myp)
+```
+
+```{r}
+cdcmurd |>
+  filter(YEAR %in% c(2019, 2020, 2021, 2022)) |>
+  nrow()
+```
+
+
+The first line selects observations from the years 2019, 2020, 2021, and 2022. Total 204 rows.
+
+The y-coordinates are defined by the variable Death.Rate, which represents the homicide death rate. The x-axis is defined by factor(YEAR), which treats the years as categorical variables. The text = Location argument is intended to provide location information when hovering over points in the interactive plot.
+
+The boxplots summarize the distribution of homicide death rates across locations for each year. The beeswarm shows the points represents the homicide death rate for a particular location in a particular year. 
+The chatbox says that "The boxplot provides a statistical summary of the distribution, whereas the beeswarm displays individual data points. Combining both methods allows us to examine the overall distribution and the individual state-level observations simultaneously."
+
+
+We can improve the plot by making the boxplots transparent, giving the points a distinct color, adding clearer labels, and filtering missing death rates.
+
+```{r}
+# Filter the data
+plot_data <- cdcmurd |>
+  filter(
+    YEAR %in% c(2019, 2020, 2021, 2022),
+    !is.na(Death.Rate)
+  )
+
+# Create improved visualization
+myp_improved <- ggplot(
+  plot_data,
+  aes(
+    x = factor(YEAR),
+    y = Death.Rate
+  )
+) +
+  geom_boxplot(
+    width = 0.45,
+    fill = "lightblue",
+    alpha = 0.3,
+    outlier.shape = NA
+  ) +
+  geom_beeswarm(
+    aes(text = paste0(
+      "Location: ", Location,
+      "<br>Year: ", YEAR,
+      "<br>Death rate: ", Death.Rate
+    )),
+    color = "darkblue",
+    size = 2,
+    alpha = 0.8
+  ) +
+  labs(
+    title = "Homicide Death Rates by State, 2019–2022",
+    x = "Year",
+    y = "Homicide Death Rate",
+    caption = "Source: CDC"
+  ) +
+  theme_minimal()
+
+# Convert to an interactive plot
+ggplotly(myp_improved, tooltip = "text")
+```
+
+## Exercise 11
+# 11.a
+
+```{r}
+library(readxl)
+
+url <- "https://tinyurl.com/randgunlaw"
+
+tf <- tempfile()
+
+download.file(url, tf)
+
+lawdat <- read_xlsx(tf, sheet = 2)
+```
+The original command can be made more interpretable by separating it into multiple steps. First, the URL is stored in a variable. Next, tempfile() creates a temporary file path, and download.file() downloads the Excel file to that location. Finally, read_xlsx() reads the downloaded file into the data frame lawdat..
+
+# 11.b
+
+The second argument, 2, specifies which worksheet in the Excel file should be read. In this case, read_xlsx(tf, 2) reads the second worksheet from the downloaded Excel file and stores its contents in the data frame lawdat.
+
+# 11.c
+
+```{r}
+nrow(lawdat)
+```
+
+The lawdat data frame contains `r nrow(lawdat)` rows.
+
+# 11.d
+
+```{r}
+library(DT)
+datatable(lawdat[,c(1,3,6,8,9,10,12)])
+```
+
+The earliest recorded year of gun legislation in the dataset is 1813.
+
+# 11.e
+
+I used the following prompt:
+"Using the dplyr package in R, write code to find the earliest recorded year in the Effective Date Year column of a data frame called lawdat. Exclude missing values."
+
+```{r}
+lawdat |>
+  filter(!is.na(`Effective Date Year`)) |>
+  summarise(earliest_year = min(`Effective Date Year`))
+```
+
+The code uses filter() to remove observations with missing effective-date years and summarise() with min() to retrieve the earliest recorded year of gun legislation in the dataset, 1813.
+
+# 11.f.1
+
+The table shows that the most common recorded legislative action was implementing restrictive gun legislation, with 1,241 records. Modifications of restrictive and permissive laws were also relatively common, with 215 and 192 records, respectively. Implementing permissive legislation occurred 187 times, while repealing legislation was less common.
+
+Overall, the dataset contains more records classified as restrictive than permissive and describes the number of recorded legislative changes.
+
+# 11.f.2
+
+```{r}
+lawdat |>
+  count(`Type of Change`, Effect, sort = TRUE)
+```
+
+## Exercise 12
+
+```{r}
+lawdat |>
+  filter(Effect == "Permissive") |>
+  summarise(
+    n = n(),
+    .by = `Effective Date Year`
+  ) |>
+  ggplot(aes(x = `Effective Date Year`, y = n)) +
+  geom_point()
+```
+
+The code first filters the lawdat dataset to include only legislative changes classified as "Permissive." It then groups the observations by effective date year and counts the number of recorded legislative changes in each year. Finally, ggplot() creates a scatterplot with year on the x-axis and the number of recorded permissive legislative changes on the y-axis.
+
+The plot shows that the number of recorded permissive legislative changes varies considerably over time. Most years before 1970 have relatively few recorded changes, while the frequency generally increases in later decades. There is a particularly high count of 50 in approximately 1900 and another peak of about 23 around 1998. These unusually high counts could be investigated further to understand whether they reflect actual legislative activity or features of the dataset.
+
+It is not possible to associate each point with a specific US state because the data are grouped only by effective date year. Each point represents the total number of recorded permissive legislative changes across all states in that year. To identify state-specific patterns, we would need to group the data by both state and year.
+
+## Exercise 13
+
+```{r}
+lawdat |>
+  filter(Effect == "Permissive") |>
+  count(State, name = "n") |>
+  filter(n == max(n))
+```
+
+The states with the highest recorded frequency of permissive legislative changes are Missouri and Tennessee. 
+
+```{r}
+lawdat |>
+  filter(Effect == "Restrictive") |>
+  count(State, name = "n") |>
+  filter(n == max(n))
+```
+
+The state with the highest recorded frequency of restrictive legislative changes is California. 
+
+## Exercise 14
+
+```{r}
+cdcmurd |> filter(Location %in% c("CA", "NY", "MS", "TN")) |> 
+   ggplot(aes(x=YEAR, y=Death.Rate, colour=Location)) + geom_point() 
+```
+
+The plot shows that Mississippi consistently has the highest homicide death rate among the four states, followed by Tennessee. California and New York generally have lower rates. Mississippi experienced a particularly large increase around 2020–2021, reaching a peak of approximately 24 in 2021, before declining in subsequent years. Tennessee also experienced an increase around 2020–2021, although its rates remained lower than Mississippi's. California and New York experienced smaller increases during this period, with New York generally having the lowest rates.
+
+To make the interpretation more precise, we could combine the RAND gun legislation dataset with the CDC homicide dataset using state and year as matching variables. We should standardize state names and abbreviations, restrict both datasets to comparable time periods, and account for missing observations. We could then examine how homicide rates change before and after particular legislative changes, distinguishing between restrictive and permissive legislation.
+
+Additionally, using firearm-specific homicide rates would provide a more directly relevant outcome for investigating gun legislation. Further analysis should consider potential confounding factors and the time between a law's implementation and any subsequent changes in homicide mortality.
+
+
