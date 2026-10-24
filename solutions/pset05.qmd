@@ -1,0 +1,301 @@
+---
+title: "Use the title “BST 260 Problem set 5: Using distributions"
+author: "Betty Hou"
+format: html
+editor: visual
+---
+
+# Exercise 1
+
+1.a
+
+```{r}
+deck = apply(expand.grid(c("A", 2:10, "J", "Q", "K"), c("Hearts", "Spades", 
+    "Clubs", "Diamonds")), 1, paste, collapse=" ")
+
+has2h = function(x) length(grep("Hearts", x))==2
+set.seed(1234)
+
+result = replicate(100000, has2h(sample(deck,5,replace=FALSE)))
+sim_prob = mean(result)
+theory_prob = dhyper(2, 13, 39, 5)
+
+sim_prob
+theory_prob
+abs(sim_prob - theory_prob)
+```
+
+By increasing the number of simulations from 100 to 100,000, we obtain a more accurate estimate of the probability of drawing exactly two hearts. The theoretical probability from the hypergeometric distribution is approximately 0.27428, and the simulation estimate is 0.27267. The absolute difference is about 0.001610. By the Law of Large Numbers, the simulation estimate converges to the theoretical probability as the number of simulations increases.
+
+1.b
+
+```{r}
+m = 13
+n = 39
+k = 5
+p = m/(m+n)
+
+theory_mean = k*p
+theory_var = k*p*(1-p)*(m+n-k)/(m+n-1)
+theory_mean
+theory_var
+```
+
+The theoretical mean and variance of the hypergeometric distribution are 1.25 and 0.8640. The simulated mean (1.243) and variance (0.8839) are close to the theoretical values. The small differences are due to random sampling variability.
+
+# Exercise 2
+
+```{r}
+library(HistData)
+x <- Galton$child
+head(x)      
+length(x)
+```
+
+1. Compute the average and SD of these data.
+
+```{r}
+mean(x)
+sd(x)
+```
+
+2. Compute the median and median absolute deviation of these data.
+
+```{r}
+median(x)
+mad(x)
+```
+
+3. How many inches does the average grow after this mistake?
+
+```{r}
+x_with_error <- x
+x_with_error[1] <- x_with_error[1] * 10
+
+mean(x_with_error) - mean(x)
+```
+
+The average grows 0.5984 inches.
+
+4. How many inches does the SD grow after this mistake?
+
+```{r}
+sd(x_with_error) - sd(x)
+```
+
+The SD grows 15.6746 inches.
+
+5. How many inches does the median grow after this mistake?
+
+```{r}
+median(x_with_error) - median(x)
+```
+
+The median grows 0 inches.
+
+6. How many inches does the MAD grow after this mistake?
+
+```{r}
+mad(x_with_error) - mad(x)
+```
+
+The MAD grows 0 inches.
+
+7. How could you use exploratory data analysis to detect that an error was made? Provide code and an illustration.
+
+```{r}
+# Problem 15
+
+# Compare original data with data containing the error
+boxplot(x, x_with_error,
+        names = c("Original", "With Error"),
+        main = "Galton Child Heights",
+        ylab = "Height (inches)",
+        col = c("lightblue", "lightpink"))
+
+# Compare summary statistics
+summary(x)
+summary(x_with_error)
+```
+
+A boxplot can identify extreme outliers in the data. After multiplying the first observation by 10, the modified dataset contains an unusually large height far outside the range of typical children's heights. The boxplot clearly displays this extreme value, suggesting that a data-entry error occurred. Summary statistics such as the maximum can also help identify the suspicious observation.
+
+8. How much can the average accidentally grow with mistakes like this? Write a function called error_avg that takes in a value k. This function should replace the first entry of the vector x with the value k, then compute and return the average of this modified x. Show the results for k=10000 and k=-10000.
+
+```{r}
+error_avg <- function(k) {
+  x_new <- x
+  x_new[1] <- k
+  return(mean(x_new))
+}
+```
+
+```{r}
+error_avg(10000)
+error_avg(-10000)
+```
+
+When K = 10000, the average of the modified x is 78.7979. When K = -10000, the average of the modified x is 57.2461.
+
+# Exercise 3
+
+1. Two teams, say the Cavaliers and the Warriors, are playing a seven-game series. The teams are equally good, so they each have a 50-50 chance of winning each game. If the Cavaliers lose the first game, what is the probability that they win the series?
+
+```{r}
+dbinom(4, 6, 0.5) + dbinom(5, 6, 0.5) + dbinom(6, 6, 0.5)
+```
+
+The probability that Cavaliers win the series is 0.3438.
+
+2. Confirm the results of the previous question with a Monte Carlo simulation.
+
+```{r}
+set.seed(1234)
+
+result <- replicate(100000, {
+  games <- sample(c(1, 0), 6,
+                  replace = TRUE,
+                  prob = c(0.5, 0.5))
+
+  sum(games) >= 4
+})
+
+# Estimated probability
+mean(result)
+```
+
+The result of 100000 Monte Carlo simulation is 0.3427, which is really close to the true probability (0.3438).
+
+3. Two teams, 𝐴 and 𝐵, are playing a seven-game series. Team 𝐴 is better than team 𝐵 and has a 𝑝 \>0.5 chance of winning each game. Given a value 𝑝, the probability of the underdog team 𝐵 winning the series can be estimated with a Monte Carlo simulation using the following function:
+
+```{r}
+prob_win <- function(p, B =10000){
+  result <- replicate(B, {
+    b_win <- sample(c(1,0), 7, replace = TRUE, prob = c(1 - p, p))
+    sum(b_win) >= 4
+  })
+  mean(result)
+}
+```
+
+For p \<- seq(0.5, 0.95, 0.025), use the function sapply to compute the corresponding probabilities of winning, call it ws. Then plot the result.
+
+```{r}
+set.seed(1234)
+
+p <- seq(0.5, 0.95, 0.025)
+
+ws <- sapply(p, prob_win)
+
+plot(p, ws,
+     type = "b",
+     xlab = "Probability that Team A wins one game",
+     ylab = "Probability that Team B wins the series",
+     main = "Underdog's Probability of Winning a Best-of-7 Series")
+```
+
+# Exercise 4
+
+1. Assume the distribution of female heights is approximated by a normal distribution with a mean of 64 inches and a standard deviation of 3 inches. If we pick a female at random, what is the probability that she is 5 feet or shorter?
+
+```{r}
+pnorm(60, mean = 64, sd = 3)
+```
+
+2. Assume the same distribution as the previous exercise. If we pick a female at random, what is the probability that she is 6 feet or taller?
+
+```{r}
+pnorm(72, mean = 64, sd = 3, lower.tail = FALSE)
+```
+
+3. Assume the same distribution as the previous exercise. If we pick a female at random, what is the probability that she is between 61 and 67 inches?
+
+```{r}
+pnorm(67, mean = 64, sd = 3) - pnorm(61, mean = 64, sd = 3)
+```
+
+4. Repeat the exercise above, but convert everything to centimeters. That is, multiply every height, including the mean and standard deviation, by 2.54. What is the answer now?
+
+```{r}
+pnorm(67*2.54, mean = 64*2.54, sd = 3*2.54) - pnorm(61*2.54, mean = 64*2.54, sd = 3*2.54)
+```
+
+5. Notice that the answers to the previous two exercises are identical even when you change units. This makes sense since the standard deviations from the average for an entry in a list are not affected by what units we use. In fact, if you look closely, you notice that 61 and 67 are both 1 SD away from the average. Compute the probability that a randomly picked, normally distributed random outcome is within 1 SD of the average. Provide the code and explain its components.
+
+```{r}
+pnorm(1, mean = 0, sd = 1) - pnorm(-1, mean = 0, sd = 1)
+```
+
+The probability is approximately $0.6827$. We standardize a normally distributed random variable using $Z = \frac{X-\mu}{\sigma}$. Being within one standard deviation of the mean is equivalent to $-1 \leq Z \leq 1$. Therefore, subtracting `pnorm(-1)` from `pnorm(1)` gives $0.6827$, meaning approximately $68.27\%$ of normally distributed observations fall within one standard deviation of the mean.
+
+6. 
+a. What are the mean and SD of Y?
+
+The mean is $c\mu$, and the SD is $c\sigma$. 
+
+b. Show that (𝑌 −𝑐𝜇)/(𝑐𝜎) =(𝑋 −𝜇)/𝜎. What units does this quantity have?
+
+Since $Y=cX$, we have
+
+$$
+\begin{aligned}
+\frac{Y-c\mu}{c\sigma}
+&=\frac{cX-c\mu}{c\sigma}\\
+&=\frac{c(X-\mu)}{c\sigma}\\
+&=\frac{X-\mu}{\sigma}.
+\end{aligned}
+$$
+
+Therefore, the equality holds. This quantity is dimensionless because both the numerator and denominator have the same units, which cancel out. Thus, the standardized value is unchanged when converting from inches to centimeters.
+
+c. Now assume 𝑋 is normally distributed. Which of the following equal Pr(𝑋 ≤𝑎)?
+
+The correct answer is A, B, and C.
+
+7. Imagine the distribution of male adults is approximately normal with a mean of 69 and a standard deviation of 3. How tall is the male in the 99th percentile? Hint: use qnorm.
+
+```{r}
+qnorm(0.99, mean = 69, sd = 3)
+```
+
+The height at the 99th percentile is approximately 75.98 inches.
+
+8. IQ scores are approximately normally distributed, with a mean of 100 and a standard deviation of 15. Suppose we want to know what the distribution of the highest IQ would look like across all high school graduating classes if 10,000 people are born each year in a school district. Run a Monte Carlo simulation with B = 1000, where each iteration generates 10,000 IQ scores and records the highest value. Then, create a histogram to visualize the distribution of the maximum IQ in the district.
+
+```{r}
+set.seed(1234)
+
+max_iq <- replicate(1000, {
+  iq <- rnorm(10000, mean = 100, sd = 15)
+  max(iq)
+})
+```
+
+```{r}
+hist(max_iq,
+     main = "Distribution of Maximum IQ Scores",
+     xlab = "Maximum IQ Score",
+     ylab = "Frequency",
+     col = "lightblue",
+     breaks = 30)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
