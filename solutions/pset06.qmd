@@ -1,0 +1,386 @@
+---
+title: "BST 260 Problem set 6: Using and critiquing models"
+author: "Betty Hou"
+format: html
+editor: visual
+---
+
+# Problem 1
+
+```{r}
+data(anscombe)
+head(anscombe)
+```
+
+```{r}
+model1 <- lm(y1 ~ x1, data = anscombe)
+summary(model1)
+```
+
+# Problem 2
+
+```{r}
+coef(model1)
+cat("y1 =", coef(model1)[1], "+",
+    coef(model1)[2], "* x1 + residual\n")
+```
+
+# Problem 3
+
+```{r}
+confint(model1, "x1", level = 0.99)
+```
+
+The 99% confidence interval for the slope parameter is (0.1169174, 0.8832644).
+
+# Problem 4
+
+```{r}
+model2 <- lm(y2 ~ x2 + I(x2^2), data = anscombe)
+summary(model2)
+cat("y2 =", coef(model2)[1], "+",
+    coef(model2)[2], "* x11 +",
+    coef(model2)[3], "* x12 + residual\n")
+```
+
+# Problem 5
+
+```{r}
+library(MASS)
+model3 <- rlm(y3 ~ x3, data = anscombe)
+summary(model3)
+plot(anscombe$x3, anscombe$y3,
+     main = "Robust Linear Regression: Anscombe III",
+     xlab = "x3",
+     ylab = "y3",
+     pch = 19,
+     col = "blue")
+
+# Add fitted robust regression line
+abline(model3, col = "red", lwd = 2)
+
+cat("y3 =", coef(model3)[1], "+",
+    coef(model3)[2], "* x3 + residual\n")
+```
+
+# Problem 6
+
+```{r}
+library(dplyr)
+library(dslabs)
+data(murders)
+head(murders)
+```
+
+(a)
+
+```{r}
+new_regions <- murders %>%
+  filter(abb %in% c("ME", "NH", "VT", "FL", "GA", "AL")) %>%
+  mutate(new_region = ifelse(
+    abb %in% c("ME", "NH", "VT"),
+    "far northeast",
+    "far southeast"
+  ))
+
+head(new_regions)
+```
+
+```{r}
+rates <- new_regions %>%
+  group_by(new_region) %>%
+  summarise(
+    total_murders = sum(total),
+    total_population = sum(population),
+    rate = total_murders / total_population * 100000,
+    .groups = "drop"
+  )
+rates
+```
+
+(b)
+
+```{r}
+model6 <- glm(
+  total ~ new_region + offset(log(population)),
+  family = poisson(link = "log"),
+  data = new_regions
+)
+summary(model6)
+```
+
+```{r}
+newdata = data.frame(new_region = c("far northeast", "far southeast"),
+                     population = c(1, 1))
+
+log_rates <- predict(
+  model6,
+  newdata = newdata,
+  type = "link"
+)
+
+# Transform back to rates per 100,000
+exp(log_rates) * 100000
+```
+
+The gun murder rate per 100,000 population in far northeast and far southeast is 0.5504 and 3.4315. 
+
+(c)
+
+```{r}
+pred <- predict(model6,
+        newdata = newdata,
+        type = "link",
+        se.fit = TRUE
+)
+
+log_lower_CI <- pred$fit - qnorm(0.975) * pred$se.fit
+log_upper_CI <- pred$fit + qnorm(0.975) * pred$se.fit
+
+# Transform the confidence intervals to rates per 100,000
+lower_CI = exp(log_lower_CI) * 100000
+upper_CI = exp(log_upper_CI) * 100000
+
+data.frame(
+  region = newdata$new_region,
+  rate = exp(pred$fit) * 100000,
+  lower_CI = lower_CI,
+  upper_CI = upper_CI
+)
+```
+
+# Problem 7
+
+```{r}
+library(NHANES)
+library(dplyr)
+```
+
+```{r}
+nh11 <- NHANES %>%
+  filter(SurveyYr == "2011_12",
+         !is.na(BPSysAve),
+         !is.na(BPDiaAve)) %>%
+  mutate(HTN = 1 * (BPSysAve > 125 | BPDiaAve > 85))
+```
+
+```{r}
+m1 <- glm(HTN ~ I(Age - 50),
+          data = nh11 %>% filter(Age > 25),
+          family = "binomial")
+
+m1nc <- glm(HTN ~ Age,
+            data = nh11 %>% filter(Age > 25),
+            family = "binomial")
+
+summary(m1)
+```
+
+```{r}
+lm1 = lm(HTN~Age, data=nh11 |> filter(Age > 25))
+summary(lm1)
+```
+
+(a)
+
+```{r}
+plogis(coef(m1)[1])
+```
+
+The estimated probability of HTN for a participant aged 50 years is 0.3865.
+
+(b)
+
+The plogis(-.4621+20*0.04865) gives the model-predicted probability of HTN at age 70, while the second calculates the observed prevalence among participants aged approximately 70 (from 67.5 to 72.5). They are close because the logistic regression model fits the age-related pattern in HTN prevalence reasonably well. They are not identical because one is model-based and the other is an empirical estimate from a subset of observations.
+
+(c)
+
+```{r}
+confint.default(m1, level = 0.95)[2, ]
+```
+
+The 95% CI for the log odds ratio comparing risk of HTN for two individuals with an age difference of one year is (0.0434, 0.0539)
+
+(d)
+
+```{r}
+m2 <- update(m1, . ~ . * Gender)
+summary(m2)
+```
+
+The * operator includes the main effects of age and sex along with their interaction. The intercept represents the log odds of HTN at age 50 for the reference sex. The age coefficient describes the age-related change in log odds for that sex, the sex coefficient describes the difference between sexes at age 50, and the interaction coefficient indicates how the age-related change differs between sexes.
+
+# Problem 8
+
+```{r}
+set.seed(1234)
+x = seq(0,5,.1)
+plot(x, dchisq(x,3), pch=".", col="blue", type="l", ylim=c(0,.4))
+x5 = replicate(1000, mean(rchisq(5, 3)))
+x50 = replicate(1000, mean(rchisq(50, 3)))
+x150 = replicate(1000, mean(rchisq(150, 3)))
+x500 = replicate(1000, mean(rchisq(500, 3)))
+x5000 = replicate(1000, mean(rchisq(5000, 3)))
+sdens = function(x,sc=4) {d = density(x); list(x=d$x, y=d$y/sc)}
+lines(sdens(x5), lty=3)
+lines(sdens(x50), lty=4)
+lines(sdens(x150), lty=5, col="gold")
+lines(sdens(x500), lty=6)
+lines(sdens(x5000), lty=7, col="brown", lwd=1.5)
+legend("topright", legend="N=150", col="gold", lty=5)
+```
+
+(a)
+
+```{r}
+set.seed(1234)
+x = seq(0,5,.1)
+plot(x, dchisq(x,3), pch=".", col="blue", type="l", ylim=c(0,3))
+x5 = replicate(1000, mean(rchisq(5, 3)))
+x50 = replicate(1000, mean(rchisq(50, 3)))
+x150 = replicate(1000, mean(rchisq(150, 3)))
+x500 = replicate(1000, mean(rchisq(500, 3)))
+x5000 = replicate(1000, mean(rchisq(5000, 3)))
+sdens = function(x,sc=4) {d = density(x); list(x=d$x, y=d$y/sc)}
+lines(sdens(x5), lty=3)
+lines(sdens(x50), lty=4)
+lines(sdens(x150), lty=5, col="gold")
+lines(sdens(x500), lty=6)
+lines(sdens(x5000), lty=7, col="brown", lwd=1.5)
+legend("topright", legend="N=150", col="gold", lty=5)
+```
+
+The density curves illustrate the Law of Large Numbers by showing that as the sample size increases, the distribution of the sample mean becomes increasingly concentrated around the true population mean of 3. For smaller sample sizes, the sample means have greater variability and a wider distribution. As the sample size increases from 5 to 5000, the density curves become narrower and taller, indicating that the sample means are more likely to be close to 3. This demonstrates that the sample mean converges in probability to the population mean as the sample size approaches infinity.
+
+(b)
+
+```{r}
+set.seed(1234)
+x = seq(0,5,.1)
+plot(x, dchisq(x,3), pch=".", col="blue", type="l", ylim=c(0,3))
+x5 = replicate(1000, mean(rchisq(5, 3)))
+x50 = replicate(1000, mean(rchisq(50, 3)))
+x150 = replicate(1000, mean(rchisq(150, 3)))
+x500 = replicate(1000, mean(rchisq(500, 3)))
+x5000 = replicate(1000, mean(rchisq(5000, 3)))
+sdens = function(x,sc=4) {d = density(x); list(x=d$x, y=d$y/sc)}
+lines(sdens(x5), lty=3)
+lines(sdens(x50), lty=4)
+lines(sdens(x150), lty=5, col="gold")
+lines(sdens(x500), lty=6)
+lines(sdens(x5000), lty=7, col="brown", lwd=1.5)
+
+legend(
+  "topright",
+  legend = c("Chi-square(3)", "N=5", "N=50",
+             "N=150", "N=500", "N=5000"),
+  col = c("blue", "black", "black",
+          "gold", "black", "brown"),
+  lty = c(1, 3, 4, 5, 6, 7),
+  lwd = c(1, 1, 1, 1, 1, 1.5),
+  cex = 0.8
+)
+```
+
+# Problem 9
+
+```{r}
+set.seed(1234) 
+x = seq(-5,5,.1)
+tdf = 3
+plot(x, dt(x,tdf), pch=".", col="blue", type="l", ylim=c(0,.4))
+x5 = replicate(1000, mean(rt(5, tdf)))
+x50 = replicate(1000, mean(rt(50, tdf)))
+x150 = replicate(1000, mean(rt(150, tdf)))
+x500 = replicate(1000, mean(rt(500, tdf)))
+x5000 = replicate(1000, mean(rt(5000, tdf)))
+sdens = function(x,sc=4) {d = density(x); list(x=d$x, y=d$y/sc)}
+lines(sdens(x5), lty=3)
+lines(sdens(x50), lty=4)
+lines(sdens(x150), lty=5, col="gold")
+lines(sdens(x500), lty=6)
+lines(sdens(x5000), lty=7, col="brown", lwd=1.5)
+legend("topright", lty=5, legend="N=150", col="gold")
+```
+
+```{r}
+set.seed(1234) 
+x = seq(-5,5,.1)
+tdf = 1
+plot(x, dt(x,tdf), pch=".", col="blue", type="l", ylim=c(0,.4))
+x5 = replicate(1000, mean(rt(5, tdf)))
+x50 = replicate(1000, mean(rt(50, tdf)))
+x150 = replicate(1000, mean(rt(150, tdf)))
+x500 = replicate(1000, mean(rt(500, tdf)))
+x5000 = replicate(1000, mean(rt(5000, tdf)))
+sdens = function(x,sc=4) {d = density(x); list(x=d$x, y=d$y/sc)}
+lines(sdens(x5), lty=3)
+lines(sdens(x50), lty=4)
+lines(sdens(x150), lty=5, col="gold")
+lines(sdens(x500), lty=6)
+lines(sdens(x5000), lty=7, col="brown", lwd=1.5)
+legend("topright", lty=5, legend="N=150", col="gold")
+```
+
+(a)
+
+For the t-distribution with 3 degrees of freedom, the density curves of the sample means become increasingly concentrated around zero as the sample size increases, illustrating the Law of Large Numbers. In contrast, for the t-distribution with 1 degree of freedom, the simulated density curves do not show this increasing concentration. Some curves appear unusually flat or spread out. Therefore,  we can see that increasing the sample size does not reduce the variability of the sample mean in the usual way.
+
+(b)
+
+The t-distribution with 1 degree of freedom is also known as the Cauchy distribution. It is distinctive because it has neither a defined mean nor a finite variance due to its heavy tails. Unlike distributions with finite means, increasing the sample size does not cause the sample mean to converge to a constant. In fact, the sample mean of independent Cauchy random variables follows the same Cauchy distribution regardless of sample size, illustrating a case where the usual Law of Large Numbers does not apply.
+
+# Problem 10
+
+```{r}
+set.seed(1234)
+x = seq(-5,5,.05)
+plot(x, dnorm(x), col="blue", type="l", lwd=2, xlim=c(1.5,4), ylim=c(-.01,.12))
+tstat = function(x,truemean=3) {n = length(x); sqrt(n)*(mean(x)-truemean)/sd(x)}
+R = 5000
+x5 = replicate(R, tstat(rchisq(5, 3)))
+x50 = replicate(R, tstat(rchisq(50, 3)))
+x150 = replicate(R, tstat(rchisq(150, 3)))
+x500 = replicate(R, tstat(rchisq(500, 3)))
+x5000 = replicate(R, tstat(rchisq(5000, 3)))
+lines(density(x5), lty=2,col="red")
+lines(density(x50), lty=3,col="orange")
+lines(density(x150), lty=4, col="gold")
+lines(density(x500), lty=5,col="black")
+lines(density(x5000), lty=6, col="brown", lwd=1.5)
+legend("topright", lty=c(2:6), 
+  legend=paste("N=", c(5,50,150,500,5000),sep=""), 
+  col=c("red", "orange", "gold", "black", "brown"))
+```
+
+(a)
+
+The display illustrates the Central Limit Theorem by showing that the sampling distribution of the standardized sample mean approaches the standard normal distribution as the sample size increases, even though the original chi-square distribution is right-skewed. For smaller sample sizes, the simulated density curves differ noticeably from the standard normal density, particularly in the upper tail. As sample size increases, the curves become closer to the standard normal curve. However, the simulation is limited because it examines only one underlying distribution, uses a finite number of simulations, and displays only the upper tail rather than the entire distribution. Therefore, it provides empirical evidence of convergence.
+
+(b)
+
+```{r}
+par(mfrow = c(1, 2))
+
+qqnorm(x5, main = "Q-Q Plot: n = 5")
+abline(0, 1, col = "red", lwd = 2)
+
+qqnorm(x500, main = "Q-Q Plot: n = 500")
+abline(0, 1, col = "red", lwd = 2)
+
+
+```
+
+For n=5, the points in the Q-Q plot deviate substantially from the identity line, particularly in the tails, indicating that the distribution of the standardized sample mean is not well approximated by a standard normal distribution. For n=500, the points should lie much closer to the identity line, suggesting that the sampling distribution is approximately standard normal. This supports the Central Limit Theorem because the standardized sample mean approaches a standard normal distribution as the sample size increases.
+
+(c)
+
+```{r}
+binom.test(sum(x5<2.576), length(x5), p=.995)
+```
+
+```{r}
+binom.test(sum(x500<2.576), length(x500), p=.995)
+```
+
+The confidence intervals estimate the probability that the standardized sample mean is below 2.576 for each sample size. The threshold 2.576 is chosen because it is approximately the 99.5th percentile of the standard normal distribution, so the Central Limit Theorem predicts that this probability should approach 0.995 as the sample size increases. For n=5, the estimated probability is 0.9922, with a 95% confidence interval of (0.9894, 0.9944), which excludes 0.995. This suggests a significant departure from the normal approximation. For n=500, the estimated probability is 0.9962, with a 95% confidence interval of (0.9941, 0.9977), which includes 0.995. This indicates that the normal approximation is more appropriate for the larger sample size, consistent with the Central Limit Theorem.
