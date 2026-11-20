@@ -1,0 +1,106 @@
+---
+title: "BST 260 Problem set 7: Topics in linear models"
+author: "Betty Hou"
+format: html
+editor: visual
+---
+
+```{r}
+library(dslabs)  # setup for problems
+library(dplyr)
+```
+
+# Problem 1
+```{r}
+diet_only <- lm(body_weight ~ diet, data = mice_weights)
+diet_and_sex <- lm(body_weight ~ diet + sex, data = mice_weights)
+
+summary(diet_only)$sigma      
+summary(diet_and_sex)$sigma  
+```
+
+They are not the same. The diet-only model predicts the same weight for all mice on a given diet. Adding sex lets the model account for differences in average weight between male and female mice on the same diet, leaving less variation unexplained.
+
+# Problem 2
+
+```{r}
+dat <- mice_weights
+breaks <- with(dat, seq(min(body_weight), max(body_weight), 1))
+dat <- mutate(dat, group = cut(body_weight, breaks, include.lowest=TRUE))
+```
+
+```{r}
+weight_summary <- dat |>
+  filter(!is.na(group)) |>
+  group_by(group) |>
+  summarize(
+    n = n(),
+    mean_weight = mean(body_weight),
+    sd_weight = sd(body_weight),
+    .groups = "drop"
+  ) |>
+  filter(n > 10)
+weight_summary
+plot(weight_summary$mean_weight, weight_summary$sd_weight,
+     xlab = "Mean weight (g)", ylab = "Standard deviation (g)",
+     pch = 19)
+```
+
+Among weight bins with more than 10 observations, the standard deviations ranged from 0.24 to 0.37 and showed no clear relationship with mean weight. The within-bin standard deviations show no clear trend with mean weight. However, since the bins are defined by observed weight and are only 1 g wide, this plot provides limited evidence about whether the regression errors have constant variance. 
+
+# Problem 3
+
+```{r}
+library(ggplot2)
+
+ggplot(mice_weights, aes(x = factor(litter), y = body_weight)) +
+  geom_boxplot() +
+  facet_grid(sex ~ diet) +
+  labs(x = "Litter", y = "Body weight (g)") +
+  theme_bw()
+```
+
+# Problem 4
+
+```{r}
+model4 <- lm(body_weight ~ sex + diet + litter, data = mice_weights)
+anova(diet_and_sex, model4)
+drop1(model4, test = "F")
+```
+
+Adding litter to the model that already included sex and diet reduced the residual sum of squares by 289.61. The ANOVA F-test gave F value =7.47 and p value 0.0064, providing evidence of a litter effect on body weight after adjusting for sex and diet. Comparing the adjusted sums of squares, sex explained the most variation (15,228.6), followed by diet (5,457.6) and litter (289.6).
+
+# Problem 5
+
+```{r}
+ggplot(mice_weights, aes(x = diet, y = bone_density)) +
+  geom_boxplot() +
+  facet_wrap(~ sex) +
+  scale_x_discrete(labels = c(chow = "Chow", hf = "High-fat")) +
+  labs(x = "Diet", y = "Bone density") +
+  theme_bw()
+```
+
+The boxplots compare bone density between the chow and high-fat diets separately for female and male mice. Among females, median bone density was lower on the high-fat diet than on chow. However, among males, the medians were similar on the two diets. This visual pattern suggests a possible diet-by-sex interaction because the difference between diets is more pronounced in females than in males.
+
+# Problem 6
+
+```{r}
+fit_female <- lm(bone_density ~ diet, data = mice_weights,
+                 subset = sex == "F")
+fit_male <- lm(bone_density ~ diet, data = mice_weights,
+               subset = sex == "M")
+fit_interaction <- lm(bone_density ~ diet * sex, data = mice_weights)
+summary(fit_female)
+summary(fit_male)
+summary(fit_interaction)
+```
+
+In the separate models, the high-fat diet was associated with a decrease in mean bone density of 0.0318 in females (p=0.0011) and 0.0125 in males (p=0.2304). The diet effect was only statistically significant in females at the 5% level.
+
+In the full model, females are the reference group, so diethf tests the diet effect in females with p-value = 0.00136. The interaction coefficient, diethf:sexM, estimates the difference between the male and female diet effects. That difference was 0.0194, with p-value = 0.17243, which is not statistically significant. 
+
+These results can occur together because the tests ask different questions. The separate tests compare each sex’s diet effect with zero, while the interaction test compares the two diet effects with each other. The data provide evidence of a diet effect in females and insufficient evidence that the effect differs by sex.
+
+
+
