@@ -1,0 +1,126 @@
+---
+title: "BST 260 Problem set 8: Topics in generalized linear models"
+author: "Betty Hou"
+format: html
+editor: visual
+---
+
+```{r}
+library(dslabs)  # setup for problems
+library(dplyr)
+library(ggplot2)
+```
+
+# Problem 1
+
+```{r}
+matches <- rbind(
+  Important = c(Wins = 8, Losses = 9),
+  Other     = c(Wins = 500*0.7 - 8, Losses = 500*0.3 - 9)
+)
+
+test <- chisq.test(matches, correct = FALSE)
+test
+test$expected
+```
+
+Since the p-value is less than 0.05, we should reject the null hypothesis of equal win probabilities. The observed win rate was lower in important matches.
+
+# Problem 2
+
+The correct answer is c.
+
+# Problem 3
+
+```{r}
+odds <- (9 / 8) / (141 / 342)
+odds
+
+se <- sqrt(1 / 9 + 1 / 8 + 1 / 141 + 1 / 342)
+
+exp(log(odds) + c(-1, 1) * qnorm(0.975) * se)
+```
+
+The odds ratio of “losing under pressure” is 2.7287. The 95% confidence interval is (1.031972, 7.215243). 
+
+The confidence interval excludes 1, so the record supports the narrower claim that she lost more often in important matches. Attributing that difference to pressure would require accounting for other factors, such as opponent strength.
+ 
+# Problem 4
+
+```{r}
+matches <- data.frame(
+  important = c(0, 1),
+  losses = c(141, 9),
+  wins = c(342, 8)
+)
+
+fit <- glm(cbind(losses, wins) ~ important,
+           family = binomial(), data = matches)
+
+summary(fit)
+
+coef_table <- summary(fit)$coefficients
+beta <- coef_table["important", "Estimate"]
+se <- coef_table["important", "Std. Error"]
+
+exp(beta)
+exp(beta + c(-1, 1) * qnorm(0.975) * se)
+```
+
+The odds ratio is 2.7287, and the 95% confidence interval is (1.031972, 7.215243). We get the same result as in problem 3. 
+
+# Problem 5
+
+```{r}
+data <- dslabs::research_funding_rates
+head(data)
+```
+
+```{r}
+unfunded_women <- data$applications_women - data$awards_women
+unfunded_men <- data$applications_men - data$awards_men
+
+log_odds <- log((data$awards_women / unfunded_women) /
+              (data$awards_men / unfunded_men))
+
+se <- sqrt(1 / data$awards_women + 1 / unfunded_women +
+           1 / data$awards_men + 1 / unfunded_men)
+
+results <- data.frame(
+  discipline = data$discipline,
+  log_odds = log_odds,
+  se = se,
+  lower = log_odds - qnorm(0.975) * se,
+  upper = log_odds + qnorm(0.975) * se
+)
+
+results
+```
+
+```{r}
+ggplot(results, aes(x = log_odds, y = reorder(discipline, log_odds))) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray") +
+  geom_errorbar(aes(xmin = lower, xmax = upper),
+                orientation = "y", width = 0.2) +
+  geom_point(size = 2.5) +
+  labs(
+    x = "Log odds ratio of funding (women vs. men)",
+    y = NULL
+  ) +
+  theme_minimal()
+```
+
+# Problem 6
+
+Men had higher estimated funding odds in Earth/life sciences and Medical sciences. These are the only two disciplines whose 95% confidence intervals lie entirely below zero.
+
+
+
+
+
+
+
+
+
+
+
